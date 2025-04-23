@@ -1,8 +1,5 @@
-"""
-Servidor API para RFM Segmentation
-Versión simplificada con toda la funcionalidad en un archivo
-"""
-
+# Añade esta línea al inicio del archivo, junto con los demás imports
+from flask_cors import CORS
 import os
 import sys
 import logging
@@ -24,10 +21,9 @@ DB_NAME = os.environ.get('DB_NAME', 'EcommerML')
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 # Crear la aplicación
+# Luego creas tu app y aplicas CORS
 app = Flask(__name__)
-
-# Configurar CORS para permitir solicitudes desde cualquier origen (ajustar en producción)
-CORS(app)
+CORS(app)  # Ahora CORS estará definido
 
 @app.route('/')
 def home():

@@ -1,4 +1,4 @@
-# Añade esta línea al inicio del archivo, junto con los demás imports
+# Imports necesarios
 from flask_cors import CORS
 import os
 import sys
@@ -7,10 +7,16 @@ from datetime import datetime
 from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 
+# Configurar logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('app')  # Definir el logger que faltaba
+
 # Cargar nuestra funcionalidad RFM
 import rfm_analysis
 
-# Cargar variables de entorno
 # Cargar variables de entorno
 load_dotenv()
 
@@ -21,9 +27,8 @@ DB_NAME = os.environ.get('DB_NAME', 'EcommerML')
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 # Crear la aplicación
-# Luego creas tu app y aplicas CORS
 app = Flask(__name__)
-CORS(app)  # Ahora CORS estará definido
+CORS(app)  # Configurar CORS
 
 @app.route('/')
 def home():

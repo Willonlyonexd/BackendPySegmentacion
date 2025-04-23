@@ -14,22 +14,20 @@ from dotenv import load_dotenv
 import rfm_analysis
 
 # Cargar variables de entorno
+# Cargar variables de entorno
 load_dotenv()
 
 # Configuración
-PORT = int(os.getenv('PORT', 5000))
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+PORT = int(os.environ.get('PORT', 5000))
+MONGO_URI = os.environ.get('MONGO_URI', 'mongodb+srv://user:pass@cluster.mongodb.net/dbname')
+DB_NAME = os.environ.get('DB_NAME', 'EcommerML')
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-# Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]
-)
-logger = logging.getLogger(__name__)
-
-# Crear aplicación Flask
+# Crear la aplicación
 app = Flask(__name__)
+
+# Configurar CORS para permitir solicitudes desde cualquier origen (ajustar en producción)
+CORS(app)
 
 @app.route('/')
 def home():

@@ -1,5 +1,6 @@
 from data.rfm_extractor import extract_rfm_data
 from preprocessing.rfm_preprocessor import process_rfm_data
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from clustering.rfm_cluster import train_kmeans_model
 from models.model_persistence import save_results_to_db
 

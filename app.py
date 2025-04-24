@@ -1,6 +1,7 @@
 # app.py
 
 from flask import Flask, jsonify, request
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from flask_cors import CORS
 import os
 import logging

@@ -12,7 +12,11 @@ def model_needs_retraining():
     return (datetime.now() - last).days > 7
 
 def get_or_train_kmeans(data):
-    if not model_needs_retraining(): return joblib.load(MODEL_PATH)
+    if not model_needs_retraining():
+        print("✅ Usando modelo KMeans ya entrenado")
+        return joblib.load(MODEL_PATH)
+
+    print("🔁 Entrenando nuevo modelo KMeans")
     kmeans = KMeans(n_clusters=4, random_state=42)
     kmeans.fit(data)
     joblib.dump(kmeans, MODEL_PATH)

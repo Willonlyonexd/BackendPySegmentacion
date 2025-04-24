@@ -10,6 +10,7 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 
+
 from rfm_analysis import run_segmentation, get_customer_segment
 from db.mongo import get_db
 
@@ -97,6 +98,35 @@ def get_segmentation_status():
     except Exception as e:
         logger.error(f"Error obteniendo estado de segmentación: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/segmentation/check-new-data", methods=["GET"])
+def check_new_data():
+    try:
+        db = get_db()
+
+        # Buscar la fecha del último segmento
+        last_seg = db.customer_segments.find_one(sort=[("fecha_calculo", -1)])
+        if not last_seg:
+            return jsonify({"new_data_count": "unknown", "should_train": True})
+
+        last_date = last_seg["fecha_calculo"]
+
+        # Contar ventas nuevas desde entonces
+        count = db.ventas.count_documents({
+            "createdAT": {"$gt": last_date},
+            "estado": {"$in": ["Procesado", "Completado", "Entregado"]}
+        })
+
+        return jsonify({
+            "success": True,
+            "new_data_count": count,
+            "should_train": count > 50  # Puedes ajustar el umbral
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 # --- Run App ---
 if __name__ == "__main__":

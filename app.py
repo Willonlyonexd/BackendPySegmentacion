@@ -1,10 +1,11 @@
 # app.py
 
 from flask import Flask, jsonify, request
-import sys  # ✅ ESTA LÍNEA ES NECESARIA
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from flask_cors import CORS
+import sys  # ✅ ESTA LÍNEA ES NECESARIA
 import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 import logging
 from datetime import datetime
 from dotenv import load_dotenv

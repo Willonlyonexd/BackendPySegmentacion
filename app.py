@@ -130,5 +130,5 @@ def check_new_data():
 
 # --- Run App ---
 if __name__ == "__main__":
-    print(f"Servidor ejecutándose en http://localhost:{PORT}")
-    app.run(host="0.0.0.0", port=PORT, debug=DEBUG)
+    port = int(os.environ.get("PORT", 5000))  # ✅ Render asigna este puerto
+    app.run(host="0.0.0.0", port=port)

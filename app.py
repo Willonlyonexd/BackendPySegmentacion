@@ -1,16 +1,14 @@
-# app.py
-
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-import sys  # ✅ ESTA LÍNEA ES NECESARIA
+import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 import logging
 from datetime import datetime
+import pytz
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from dotenv import load_dotenv
-
-
 from rfm_analysis import run_segmentation, get_customer_segment
 from db.mongo import get_db
 
@@ -46,17 +44,19 @@ def home():
 
 @app.route("/api/health")
 def health_check():
+    tz = pytz.timezone("America/La_Paz")
     return jsonify({
         "status": "ok",
         "service": "rfm-segmentation",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now(tz).isoformat()
     })
 
 @app.route("/api/segmentation/run", methods=["POST"])
 def trigger_segmentation():
     try:
+        force = request.args.get('force', 'false').lower() == 'true'
         logger.info("Ejecutando segmentación desde API")
-        result = run_segmentation()
+        result = run_segmentation(force=force)
         return jsonify(result)
     except Exception as e:
         logger.error(f"Error al ejecutar segmentación: {str(e)}")
@@ -76,43 +76,51 @@ def api_get_customer_segment(customer_id):
 
 @app.route('/api/segmentation/customers', methods=['GET'])
 def get_all_customer_segments():
-    """Devolver datos RFM y segmento por cliente (para graficar)"""
+    """
+    Devuelve datos RFM y segmento por cliente SOLO de la última versión.
+    """
     try:
-        db =get_db()
-        resultados = list(db.customer_segments.find({}))
-        clientes = []
+        db = get_db()
 
-        for r in resultados:
-            clientes.append({
-                "cliente_id": str(r.get("cliente_id")),
-                "recencia_dias": r.get("recencia_dias"),
-                "num_compras": r.get("num_compras"),
-                "total_gastado": r.get("total_gastado"),
-                "segmento": r.get("segmento")
-            })
+        # Obtener el último version_id
+        last_segment = db.customer_segments.find_one(sort=[("fecha_calculo", -1)])
+        if not last_segment:
+            return jsonify({"success": False, "message": "No hay datos de segmentación"}), 404
 
-        return jsonify({
-            "success": True,
-            "clientes": clientes
-        })
+        version_id = last_segment.get("version_id")
+        if not version_id:
+            return jsonify({"success": False, "message": "No se encontró version_id en los datos"}), 404
+
+        # Traer clientes SOLO de esa versión
+        resultados = list(db.customer_segments.find({"version_id": version_id}))
+        clientes = [{
+            "cliente_id": str(r.get("cliente_id")),
+            "recencia_dias": r.get("recencia_dias"),
+            "num_compras": r.get("num_compras"),
+            "total_gastado": r.get("total_gastado"),
+            "segmento": r.get("segmento")
+        } for r in resultados]
+
+        return jsonify({"success": True, "clientes": clientes})
     except Exception as e:
         logger.error(f"Error extrayendo datos de clientes: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/segmentation/status", methods=["GET"])
 def get_segmentation_status():
     try:
         db = get_db()
+
         last_segment = db.customer_segments.find_one(sort=[("fecha_calculo", -1)])
+        if not last_segment:
+            return jsonify({
+                "success": False,
+                "message": "No hay segmentaciones realizadas"
+            }), 404
+
         pipeline = [
-            {"$group": {
-                "_id": "$segmento",
-                "count": {"$sum": 1}
-            }}
+            {"$match": {"version_id": last_segment["version_id"]}},
+            {"$group": {"_id": "$segmento", "count": {"$sum": 1}}}
         ]
         segment_counts = {}
         for doc in db.customer_segments.aggregate(pipeline):
@@ -120,7 +128,7 @@ def get_segmentation_status():
 
         return jsonify({
             "success": True,
-            "last_update": last_segment["fecha_calculo"].isoformat() if last_segment else None,
+            "last_update": last_segment["fecha_calculo"].isoformat(),
             "segments": segment_counts,
             "total_customers": sum(segment_counts.values())
         })
@@ -128,20 +136,18 @@ def get_segmentation_status():
         logger.error(f"Error obteniendo estado de segmentación: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-
 @app.route("/api/segmentation/check-new-data", methods=["GET"])
 def check_new_data():
     try:
         db = get_db()
 
-        # Buscar la fecha del último segmento
         last_seg = db.customer_segments.find_one(sort=[("fecha_calculo", -1)])
         if not last_seg:
             return jsonify({"new_data_count": "unknown", "should_train": True})
 
         last_date = last_seg["fecha_calculo"]
 
-        # Contar ventas nuevas desde entonces
+        # Contar ventas nuevas
         count = db.ventas.count_documents({
             "createdAT": {"$gt": last_date},
             "estado": {"$in": ["Procesado", "Completado", "Entregado"]}
@@ -150,14 +156,13 @@ def check_new_data():
         return jsonify({
             "success": True,
             "new_data_count": count,
-            "should_train": count > 50  # Puedes ajustar el umbral
+            "should_train": count > 50
         })
-
     except Exception as e:
+        logger.error(f"Error chequeando nuevos datos: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
-
 
 # --- Run App ---
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # ✅ Render asigna este puerto
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

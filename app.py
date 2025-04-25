@@ -78,7 +78,7 @@ def api_get_customer_segment(customer_id):
 def get_all_customer_segments():
     """Devolver datos RFM y segmento por cliente (para graficar)"""
     try:
-        db = rfm_analysis.get_db()
+        db =get_db()
         resultados = list(db.customer_segments.find({}))
         clientes = []
 

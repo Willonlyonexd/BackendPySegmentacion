@@ -74,6 +74,35 @@ def api_get_customer_segment(customer_id):
         logger.error(f"Error obteniendo segmento: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route('/api/segmentation/customers', methods=['GET'])
+def get_all_customer_segments():
+    """Devolver datos RFM y segmento por cliente (para graficar)"""
+    try:
+        db = rfm_analysis.get_db()
+        resultados = list(db.customer_segments.find({}))
+        clientes = []
+
+        for r in resultados:
+            clientes.append({
+                "cliente_id": str(r.get("cliente_id")),
+                "recencia_dias": r.get("recencia_dias"),
+                "num_compras": r.get("num_compras"),
+                "total_gastado": r.get("total_gastado"),
+                "segmento": r.get("segmento")
+            })
+
+        return jsonify({
+            "success": True,
+            "clientes": clientes
+        })
+    except Exception as e:
+        logger.error(f"Error extrayendo datos de clientes: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
 @app.route("/api/segmentation/status", methods=["GET"])
 def get_segmentation_status():
     try:

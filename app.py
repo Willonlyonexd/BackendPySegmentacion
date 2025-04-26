@@ -126,15 +126,22 @@ def get_segmentation_status():
         for doc in db.customer_segments.aggregate(pipeline):
             segment_counts[doc["_id"]] = doc["count"]
 
+        # ⚡ Corrección aquí: forzar fecha en zona horaria Bolivia
+        from datetime import datetime
+        import pytz
+        bolivia_tz = pytz.timezone('America/La_Paz')
+        fecha_bolivia = last_segment["fecha_calculo"].astimezone(bolivia_tz).isoformat()
+
         return jsonify({
             "success": True,
-            "last_update": last_segment["fecha_calculo"].isoformat(),
+            "last_update": fecha_bolivia,
             "segments": segment_counts,
             "total_customers": sum(segment_counts.values())
         })
     except Exception as e:
         logger.error(f"Error obteniendo estado de segmentación: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
+
 
 @app.route("/api/segmentation/check-new-data", methods=["GET"])
 def check_new_data():

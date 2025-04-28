@@ -5,6 +5,7 @@ import os
 import logging
 from datetime import datetime
 import pytz
+from bson.objectid import ObjectId
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -191,6 +192,51 @@ def get_clientes_fullname():
 
     except Exception as e:
         logger.error(f"Error obteniendo clientes: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Nueva ruta para obtener la información solicitada
+@app.route("/api/clientes/detalles", methods=["GET"])
+def get_clientes_info():
+    """
+    Devuelve un JSON con todos los clientes y su cantidad de compras, costo de compras y última compra.
+    """
+    try:
+        db = get_db()
+
+        # Obtener todos los clientes
+        resultados = db.clientes.find()
+
+        clientes_info = []
+
+        # Para cada cliente, obtenemos las ventas relacionadas
+        for cliente in resultados:
+            cliente_id = str(cliente["_id"])
+
+            # Obtener las ventas del cliente
+            ventas = list(db.ventas.find({"cliente": cliente["_id"]}))
+
+            cantidad_compras = len(ventas)
+            costo_compras = sum(venta['total'] for venta in ventas)
+            ultima_compra = max(venta['createdAT'] for venta in ventas) if ventas else None
+
+            # Formatear la fecha de la última compra
+            if ultima_compra:
+                ultima_compra_formateada = ultima_compra.strftime("%d/%m/%Y")
+            else:
+                ultima_compra_formateada = None
+
+            # Agregar la información del cliente al JSON
+            clientes_info.append({
+                "id": cliente_id,
+                "cantidad_de_compras": cantidad_compras,
+                "costo_de_compras": costo_compras,
+                "ultima_compra": ultima_compra_formateada
+            })
+
+        return jsonify({"success": True, "clientes_info": clientes_info})
+
+    except Exception as e:
+        logger.error(f"Error obteniendo información de clientes: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 # --- Run App ---

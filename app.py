@@ -169,6 +169,24 @@ def check_new_data():
         logger.error(f"Error chequeando nuevos datos: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+
+@app.route("/api/clientes", methods=["GET"])
+def get_clientes_fullname():
+    """
+    Devuelve todos los clientes: id + nombre completo
+    """
+    try:
+        db = get_db()
+
+        # Supongamos que tienes una colección 'clientes'
+        clientes = list(db.clientes.find({}, {"_id": 0, "cliente_id": 1, "fullname": 1}))
+
+        return jsonify({"success": True, "clientes": clientes})
+    except Exception as e:
+        logger.error(f"Error obteniendo clientes: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 # --- Run App ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

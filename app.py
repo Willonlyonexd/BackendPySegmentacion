@@ -169,23 +169,29 @@ def check_new_data():
         logger.error(f"Error chequeando nuevos datos: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-
 @app.route("/api/clientes", methods=["GET"])
 def get_clientes_fullname():
     """
-    Devuelve todos los clientes: id + nombre completo
+    Devuelve todos los clientes con su cliente_id y fullname.
     """
     try:
         db = get_db()
 
-        # Supongamos que tienes una colección 'clientes'
-        clientes = list(db.clientes.find({}, {"_id": 0, "cliente_id": 1, "fullname": 1}))
+        # Buscar todos los clientes
+        resultados = db.clientes.find()
+
+        clientes = []
+        for cliente in resultados:
+            clientes.append({
+                "cliente_id": str(cliente["_id"]),
+                "fullname": cliente.get("fullname", "Nombre Desconocido")
+            })
 
         return jsonify({"success": True, "clientes": clientes})
+
     except Exception as e:
         logger.error(f"Error obteniendo clientes: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
-
 
 # --- Run App ---
 if __name__ == "__main__":

@@ -231,7 +231,7 @@ def get_clientes_info():
                 ultima_compra_formateada = None
 
             clientes_info.append({
-                "id": cliente_id,
+                "cliente_id": cliente_id,
                 "cantidad_de_compras": cantidad_compras,
                 "costo_de_compras": costo_compras,
                 "ultima_compra": ultima_compra_formateada

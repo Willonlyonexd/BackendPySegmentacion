@@ -199,17 +199,22 @@ def get_clientes_fullname():
 def get_clientes_info():
     """
     Devuelve un JSON con todos los clientes y su cantidad de compras, costo de compras y última compra.
+    Implementa paginación.
     """
     try:
         db = get_db()
 
-        # Obtener todos los clientes
-        resultados = db.clientes.find()
+        # Definir la página y los límites de la consulta
+        page = int(request.args.get('page', 1))  # Página por defecto = 1
+        limit = int(request.args.get('limit', 100))  # Límite de resultados por página
+
+        # Obtener los clientes con paginación
+        clientes = db.clientes.find().skip((page - 1) * limit).limit(limit)
 
         clientes_info = []
 
         # Para cada cliente, obtenemos las ventas relacionadas
-        for cliente in resultados:
+        for cliente in clientes:
             cliente_id = str(cliente["_id"])
 
             # Obtener las ventas del cliente
@@ -225,7 +230,6 @@ def get_clientes_info():
             else:
                 ultima_compra_formateada = None
 
-            # Agregar la información del cliente al JSON
             clientes_info.append({
                 "id": cliente_id,
                 "cantidad_de_compras": cantidad_compras,
@@ -238,6 +242,7 @@ def get_clientes_info():
     except Exception as e:
         logger.error(f"Error obteniendo información de clientes: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
+
 
 # --- Run App ---
 if __name__ == "__main__":

@@ -1,7 +1,5 @@
-# Configuración para Gunicorn en producción
-workers = 4  # Para aplicaciones de ML, un worker suele ser suficiente
+workers = 4
 threads = 2
-timeout = 500 # Mayor timeout para procesos de ML que pueden tardar
+timeout = 1000  # Aumentar a 1000 segundos (16.6 minutos)
 max_requests = 1000
 max_requests_jitter = 50
-

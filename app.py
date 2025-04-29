@@ -199,51 +199,64 @@ def get_clientes_fullname():
 @app.route("/api/clientes/detalles", methods=["GET"])
 def get_clientes_info():
     """
-    Devuelve un JSON con todos los clientes y su cantidad de compras, costo de compras y última compra.
-    Implementa paginación.
+    Versión optimizada que usa agregaciones de MongoDB para calcular los datos
+    requeridos directamente en la base de datos sin hacer múltiples consultas.
     """
     try:
         db = get_db()
-
+        
         # Definir la página y los límites de la consulta
         page = int(request.args.get('page', 1))  # Página por defecto = 1
-        limit = int(request.args.get('limit', 200))  # Límite de resultados por página
-
-        # Obtener los clientes con paginación
-        clientes = db.clientes.find().skip((page - 1) * limit).limit(limit)
-
+        limit = int(request.args.get('limit', 100))  # Límite reducido para evitar timeouts
+        
+        # Obtener IDs de clientes para esta página
+        cliente_ids = []
+        for cliente in db.clientes.find({}, {"_id": 1}).skip((page - 1) * limit).limit(limit):
+            cliente_ids.append(cliente["_id"])
+        
+        logger.info(f"Procesando {len(cliente_ids)} clientes para la página {page}")
+        
+        # Usar agregación para calcular estadísticas de ventas para estos clientes
+        pipeline = [
+            # Filtrar solo ventas de los clientes en esta página
+            {"$match": {"cliente": {"$in": cliente_ids}}},
+            
+            # Agrupar por cliente y calcular métricas
+            {"$group": {
+                "_id": "$cliente",
+                "cantidad_de_compras": {"$sum": 1},
+                "costo_de_compras": {"$sum": "$total"},
+                "ultima_compra": {"$max": "$createdAT"}
+            }}
+        ]
+        
+        # Ejecutar la agregación
+        ventas_stats = {str(stats["_id"]): stats for stats in db.ventas.aggregate(pipeline)}
+        
+        # Preparar resultado final
         clientes_info = []
-
-        # Para cada cliente, obtenemos las ventas relacionadas
-        for cliente in clientes:
-            cliente_id = str(cliente["_id"])
-
-            # Obtener las ventas del cliente
-            ventas = list(db.ventas.find({"cliente": cliente["_id"]}))
-
-            cantidad_compras = len(ventas)
-            costo_compras = sum(venta['total'] for venta in ventas)
-            ultima_compra = max(venta['createdAT'] for venta in ventas) if ventas else None
-
-            # Formatear la fecha de la última compra
-            if ultima_compra:
-                ultima_compra_formateada = ultima_compra.strftime("%d/%m/%Y")
-            else:
-                ultima_compra_formateada = None
-
+        
+        for cliente_id_obj in cliente_ids:
+            cliente_id_str = str(cliente_id_obj)
+            stats = ventas_stats.get(cliente_id_str, {})
+            
+            # Formatear fecha de última compra si existe
+            ultima_compra = stats.get("ultima_compra")
+            ultima_compra_formateada = ultima_compra.strftime("%d/%m/%Y") if ultima_compra else None
+            
             clientes_info.append({
-                "cliente_id": cliente_id,
-                "cantidad_de_compras": cantidad_compras,
-                "costo_de_compras": costo_compras,
+                "cliente_id": cliente_id_str,
+                "cantidad_de_compras": stats.get("cantidad_de_compras", 0),
+                "costo_de_compras": stats.get("costo_de_compras", 0),
                 "ultima_compra": ultima_compra_formateada
             })
-
+        
+        logger.info(f"Completado procesamiento para {len(clientes_info)} clientes")
         return jsonify({"success": True, "clientes_info": clientes_info})
 
     except Exception as e:
         logger.error(f"Error obteniendo información de clientes: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
-
 # --- Run App ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

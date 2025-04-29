@@ -2,7 +2,6 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sys
 import os
-import requests
 import logging
 from datetime import datetime
 import pytz
